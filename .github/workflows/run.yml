@@ -1,38 +1,35 @@
 name: AutoFetch
-# 触发规则：1.定时自动跑  2.提交代码时手动触发
 on:
+  workflow_dispatch: # 手动运行按钮
   schedule:
-    - cron: '0 */12 * * *' # 每12小时自动抓取一次，可自定义 cron
-  workflow_dispatch: # 支持在Github页面手动点按钮运行
+    - cron: '0 */12 * * *'
 
 jobs:
   run:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # 关键：开启仓库写入权限，解决push失败exit1
     steps:
-      - name: 拉取仓库代码
+      - name: 拉取代码
         uses: actions/checkout@v4
 
-      - name: 安装python
+      - name: Python环境
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: 安装chrome+驱动(云端预装，无需本地)
-        run: |
-          sudo apt update
-          sudo apt install -y chromium-browser chromium-chromedriver
-          export PATH=$PATH:/usr/lib/chromium-browser/
-
-      - name: 安装python依赖
+      # ubuntu自带chrome，无需手动安装
+      - name: 安装依赖
         run: pip install -r requirements.txt
 
-      - name: 执行爬虫
+      - name: 运行爬虫
         run: python fetch.py
 
-      - name: 自动提交更新后的txt到仓库
+      - name: 提交更新文件
         run: |
-          git config user.name "AutoBot"
-          git config user.email "bot@github.com"
+          git config --global user.name "AutoBot"
+          git config --global user.email "bot@github.com"
           git add result.txt error.log
-          git commit -m "auto update result $(date +%Y-%m-%d_%H:%M)" || true
+          # 无修改直接跳过commit，避免空提交报错
+          git commit -m "auto update $(date +%Y-%m-%d_%H:%M)" || exit 0
           git push
